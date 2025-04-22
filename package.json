@@ -1,0 +1,10 @@
+{
+  "name": "native-release",
+  "dependencies": {
+    "better-sqlite3": "^11.8.1"
+  },
+  "devDependencies": {
+    "node-abi": "latest",
+    "tar": "latest"
+  }
+}

@@ -1,0 +1,343 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/**'
+
+permissions:
+  contents: write
+
+jobs:
+  CheckTag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.check_tag.outputs.tag }}
+      lib_tag: ${{ steps.check_tag.outputs.lib_tag }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: 'true'
+
+    - name: Check if submodule latest commit has a tag
+      id: check_tag
+      run: |
+        cd any-listen
+        latest_commit=$(git log -1 --format=%H)
+        tag=$(git tag --contains $latest_commit)
+
+        if [ -z "$tag" ]; then
+          echo "No tag found for the latest commit in the submodule."
+          echo "tag=" >> $GITHUB_OUTPUT
+        else
+          echo "Tag found for the latest commit: $tag"
+          if [[ "$tag" == webserver-* ]]; then
+            echo "Tag found for the latest commit: $tag, commit: $latest_commit"
+            tag_formated=$(echo "$tag" | sed 's/^webserver-v\?//')
+            echo "tag=$tag_formated" >> $GITHUB_OUTPUT
+          else
+            echo "Tag does not start with 'webserver-v', skipping build."
+            echo "tag=" >> $GITHUB_OUTPUT
+          fi
+        fi
+    - name: Check Lib Version
+      id: check_lib_version
+      run: |
+        VERSION_LINE=$(grep "export const NATIVE_VERSION" any-listen/packages/shared/common/constants.ts)
+        echo "Found line: $VERSION_LINE"
+        VERSION=$(echo "$VERSION_LINE" | sed -E 's/.*NATIVE_VERSION\s*=\s*([0-9]+).*/\1/')
+        # echo "NATIVE_VERSION=$VERSION" >> $GITHUB_ENV
+        TAG_NAME="v$VERSION"
+        if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+          echo "Tag $TAG_NAME already exists."
+          echo "lib_tag=" >> $GITHUB_OUTPUT
+        else
+          echo "Tag $TAG_NAME does not exist. Setting output."
+          echo "lib_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+        fi
+
+  CreateTag:
+    needs: CheckTag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.create_tag.outputs.tag }}
+    if: needs.CheckTag.outputs.lib_tag != ''
+    steps:
+      - name: Create git tag
+        uses: pkgdeps/git-tag-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_repo: ${{ github.repository }}
+          version: ${{ needs.CheckTag.outputs.lib_tag }}
+          git_commit_sha: ${{ github.sha }}
+          git_tag_prefix: "v"
+
+      - name: Output tag
+        id: create_tag
+        run: |
+          echo "tag=${{ needs.CheckTag.outputs.lib_tag }}" >> $GITHUB_OUTPUT
+
+  BuildNativeLibraryWindows:
+    needs: CreateTag
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        architecture: ['x64', 'ia32']
+    name: Windows ${{ matrix.architecture }}
+    env:
+      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - name: Cache file
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            prebuilds
+          key: windows-build-caches-
+          restore-keys: windows-build-caches-
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        env:
+          LIB_ARCH: ${{ matrix.architecture }}
+        run: |
+          node index.js
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
+  BuildNativeLibraryWindowsArm:
+    needs: CreateTag
+    runs-on: windows-11-arm
+    name: Windows arm64
+    env:
+      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - name: Cache file
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            prebuilds
+          key: windows-arm-build-caches-
+          restore-keys: windows-arm-build-caches-
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        run: |
+          node index.js
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
+  BuildNativeLibraryMacOS:
+    needs: CreateTag
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        architecture: ['x64', 'arm64']
+    name: MacOS ${{ matrix.architecture }}
+    env:
+      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
+    steps:
+      - name: Install setuptools
+        run: |
+          mkdir ~/.venv
+          python3 -m venv ~/.venv
+          source ~/.venv/bin/activate
+          python3 -m pip install setuptools
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Cache file
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            prebuilds
+          key: mac-amd64-build-caches-
+          restore-keys: mac-amd64-build-caches-
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        env:
+          LIB_ARCH: ${{ matrix.architecture }}
+        run: |
+          node index.js
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
+  BuildNativeLibraryLinuxAmd64:
+    needs: CreateTag
+    runs-on: ubuntu-latest
+    container: node:18
+    name: Linux amd64
+    env:
+      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Cache file
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            prebuilds
+          key: linux-amd64-build-caches-
+          restore-keys: linux-amd64-build-caches-
+
+      - name: Build
+        run: |
+          node index.js
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
+  BuildNativeLibraryLinuxArm:
+    needs: CreateTag
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: ['arm/v7', 'arm64']
+    name: Linux ${{ matrix.architecture }}
+    env:
+      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+      - name: Cache file
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            prebuilds
+          key: linux-${{ matrix.architecture }}-build-caches-
+          restore-keys: |
+            linux-${{ matrix.architecture }}-build-caches-
+      - uses: docker/setup-qemu-action@v3
+        with:
+          image: tonistiigi/binfmt:latest
+          platforms: arm,arm64
+      - run: |
+          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.architecture }} node:18 -c "\
+          cd /tmp/project && \
+          node index.js"
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
+  Release:
+    needs:
+      - CreateTag
+      - BuildNativeLibraryWindows
+      - BuildNativeLibraryWindowsArm
+      - BuildNativeLibraryMacOS
+      - BuildNativeLibraryLinuxAmd64
+      - BuildNativeLibraryLinuxArm
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Set release variables
+        id: set-release-vars
+        run: |
+          TAG="${{ needs.CreateTag.outputs.tag }}"
+          if [[ ! "$TAG" =~ ^\d+\.\d+\.\d+$ ]]; then
+            echo "TAG is not in x.x.x format. Using beta settings."
+            echo "log_file=./publish/changeLog.beta.md" >> $GITHUB_ENV
+            echo "prerelease=true" >> $GITHUB_ENV
+          else
+            echo "TAG is in x.x.x format. Using regular release settings."
+            echo "log_file=./publish/changeLog.md" >> $GITHUB_ENV
+            echo "prerelease=false" >> $GITHUB_ENV
+          fi
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ./any-listen/packages/web-server/publish/${{ env.log_file }}
+          prerelease: ${{ env.prerelease }}
+          draft: false
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  BuildServer:
+    needs:
+      - CheckTag
+      - Release
+    name: Build Server
+    runs-on: ubuntu-latest
+    if: needs.CheckTag.outputs.tag != ''
+    steps:
+      - name: Checkout web server
+        uses: actions/checkout@v4
+        with:
+          repository: any-listen/any-listen-web-server
+          token: ${{ secrets.GH_WEB_SERVER_PAT }}
+
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          path: any-listen
+          token: ${{ github.token }}
+
+      - name: Push Code
+        run: |
+          git config user.name "lyswhut"
+          git config user.email "lyswhut@qq.com"
+          git add .
+          git commit -m "Release v${{ needs.CheckTag.outputs.tag }}"
+          git remote set-url origin https://x-access-token:${{ secrets.GH_WEB_SERVER_PAT }}@github.com/any-listen/any-listen-web-server.git
+          git push origin main

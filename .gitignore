@@ -1,0 +1,8 @@
+node_modules
+build
+deps
+src
+prebuilds
+native
+dist
+package-lock.json
