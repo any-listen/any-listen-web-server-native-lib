@@ -101,8 +101,8 @@ jobs:
           path: |
             build
             prebuilds
-          key: windows-build-caches-
-          restore-keys: windows-build-caches-
+          key: windows-${{ matrix.architecture }}-build-caches-
+          restore-keys: windows-${{ matrix.architecture }}-build-caches-
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
@@ -181,8 +181,8 @@ jobs:
           path: |
             build
             prebuilds
-          key: mac-amd64-build-caches-
-          restore-keys: mac-amd64-build-caches-
+          key: mac-${{ matrix.architecture }}-build-caches-
+          restore-keys: mac-${{ matrix.architecture }}-build-caches-
 
       - name: Install Node.js
         uses: actions/setup-node@v4
