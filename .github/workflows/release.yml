@@ -57,7 +57,7 @@ jobs:
           echo "lib_tag=" >> $GITHUB_OUTPUT
         else
           echo "Tag $TAG_NAME does not exist. Setting output."
-          echo "lib_tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "lib_tag=$VERSION" >> $GITHUB_OUTPUT
         fi
 
   CreateTag:
@@ -241,8 +241,6 @@ jobs:
       matrix:
         architecture: ['arm/v7', 'arm64']
     name: Linux ${{ matrix.architecture }}
-    env:
-      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
     steps:
       - name: Check out git repository
         uses: actions/checkout@v4
@@ -262,7 +260,7 @@ jobs:
           image: tonistiigi/binfmt:latest
           platforms: arm,arm64
       - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.architecture }} node:18 -c "\
+          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.architecture }} node:18 -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' -c "\
           cd /tmp/project && \
           node index.js"
 
