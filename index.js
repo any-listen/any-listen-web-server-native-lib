@@ -114,7 +114,7 @@ const build = async(target) => {
     gzip: true,
     cwd: join('./native'),
     files: fs.readdirSync(join('./native')),
-    dist: join(`dist/${process.platform}_${process.arch}_${await getNodeAbi(target)}_v${version}.tar.gz`),
+    dist: join(`dist/${process.platform}_${arch}_${await getNodeAbi(target)}_v${version}.tar.gz`),
   })
 }
 
