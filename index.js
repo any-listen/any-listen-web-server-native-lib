@@ -69,7 +69,9 @@ const build = async(target) => {
   const version = process.env.LIB_VERSION
   if (!version) throw new Error('LIB_VERSION is not set')
 
-  if (process.platform == 'win32' && arch == 'arm64' && target == '18.0.0') return
+  if (process.platform == 'win32' && target == '18.0.0') {
+    if (arch == 'arm64' || arch == 'ia32') return
+  }
 
   console.log(`Building for ${process.platform} ${target} ${arch}...`)
   exec(`npx --no-install -y prebuild -r node -a ${arch} -t ${target} --strip`, { stdio: 'inherit', cwd: __dirname, shell: true })
@@ -105,7 +107,7 @@ const build = async(target) => {
     gzip: true,
     cwd: join('./native'),
     files: fs.readdirSync(join('./native')),
-    dist: join(`dist/${process.platform}_${process.arch}_${require('node-abi').getAbi(target, 'node')}_v${version}.tar.gz`),
+    dist: join(`dist/${process.platform}_${process.arch}_${(await import('node-abi')).getAbi(target, 'node')}_v${version}.tar.gz`),
   })
 }
 

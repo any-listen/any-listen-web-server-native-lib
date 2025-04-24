@@ -260,7 +260,7 @@ jobs:
           image: tonistiigi/binfmt:latest
           platforms: arm,arm64
       - run: |
-          docker run --rm -v $(pwd):/tmp/project --entrypoint /bin/sh --platform linux/${{ matrix.architecture }} node:18 -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' -c "\
+          docker run --rm -v $(pwd):/tmp/project  -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' --platform linux/${{ matrix.architecture }} --entrypoint /bin/sh node:18 -c "\
           cd /tmp/project && \
           node index.js"
 
