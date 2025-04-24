@@ -234,13 +234,43 @@ jobs:
           tag_name: v${{ needs.CreateTag.outputs.tag }}
           files: dist/*.tar.gz
 
+  BuildNativeLibraryLinuxArm64:
+    needs: CreateTag
+    runs-on: ubuntu-24.04-arm
+    container: node:18
+    name: Linux arm64
+    env:
+      LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Cache file
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            prebuilds
+          key: linux-arm64-build-caches-
+          restore-keys: linux-arm64-build-caches-
+
+      - name: Build
+        run: |
+          node index.js
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
   BuildNativeLibraryLinuxArm:
     needs: CreateTag
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture: ['arm/v7', 'arm64']
-    name: Linux ${{ matrix.architecture }}
+    name: Linux arm/v7
     steps:
       - name: Check out git repository
         uses: actions/checkout@v4
@@ -252,15 +282,15 @@ jobs:
           path: |
             build
             prebuilds
-          key: linux-${{ matrix.architecture }}-build-caches-
+          key: linux-arm/v7-build-caches-
           restore-keys: |
-            linux-${{ matrix.architecture }}-build-caches-
+            linux-arm/v7-build-caches-
       - uses: docker/setup-qemu-action@v3
         with:
           image: tonistiigi/binfmt:latest
-          platforms: arm,arm64
+          platforms: arm
       - run: |
-          docker run --rm -v $(pwd):/tmp/project  -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' --platform linux/${{ matrix.architecture }} --entrypoint /bin/sh node:18 -c "\
+          docker run --rm -v $(pwd):/tmp/project  -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' --platform linux/arm/v7 --entrypoint /bin/sh node:18 -c "\
           cd /tmp/project && \
           node index.js"
 
