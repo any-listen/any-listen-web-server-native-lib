@@ -327,11 +327,11 @@ jobs:
           TAG="${{ needs.CreateTag.outputs.tag }}"
           if [[ ! "$TAG" =~ ^\d+\.\d+\.\d+$ ]]; then
             echo "TAG is not in x.x.x format. Using beta settings."
-            echo "log_file=./publish/changeLog.beta.md" >> $GITHUB_ENV
+            echo "log_file=changeLog.beta.md" >> $GITHUB_ENV
             echo "prerelease=true" >> $GITHUB_ENV
           else
             echo "TAG is in x.x.x format. Using regular release settings."
-            echo "log_file=./publish/changeLog.md" >> $GITHUB_ENV
+            echo "log_file=changeLog.md" >> $GITHUB_ENV
             echo "prerelease=false" >> $GITHUB_ENV
           fi
 
