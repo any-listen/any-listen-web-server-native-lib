@@ -42,10 +42,17 @@ fs.cpSync(join('node_modules/better-sqlite3/deps'), join('./deps'), {
 /**
  *
  * @param {string} target
+ * @returns
+ */
+const getNodeAbi = async(target) => (await import('node-abi')).getAbi(target, 'node')
+
+/**
+ *
+ * @param {string} target
  * @param {string} arch
  */
 const unpackFile = async(target, arch) => {
-  const filePath = join('./prebuilds', `${pkg.name}-v-node-v${require('node-abi').getAbi(target, 'node')}-${process.platform}-${arch}.tar.gz`)
+  const filePath = join('./prebuilds', `${pkg.name}-v-node-v${await getNodeAbi(target)}-${process.platform}-${arch}.tar.gz`)
   const dist = join('./native')
   fs.mkdirSync(dist, {
     recursive: true,
@@ -69,8 +76,8 @@ const build = async(target) => {
   const version = process.env.LIB_VERSION
   if (!version) throw new Error('LIB_VERSION is not set')
 
-  if (process.platform == 'win32' && target == '18.0.0') {
-    if (arch == 'arm64' || arch == 'ia32') return
+  if (process.platform == 'win32' && (arch == 'arm64' || arch == 'ia32')) {
+    if (ignoreVersion.includes(target)) return
   }
 
   console.log(`Building for ${process.platform} ${target} ${arch}...`)
@@ -107,10 +114,11 @@ const build = async(target) => {
     gzip: true,
     cwd: join('./native'),
     files: fs.readdirSync(join('./native')),
-    dist: join(`dist/${process.platform}_${process.arch}_${(await import('node-abi')).getAbi(target, 'node')}_v${version}.tar.gz`),
+    dist: join(`dist/${process.platform}_${process.arch}_${await getNodeAbi(target)}_v${version}.tar.gz`),
   })
 }
 
+const ignoreVersion = ['18.0.0', '23.0.0']
 const run = async() => {
   const targets = ['18.0.0', '20.0.0', '22.0.0', '23.0.0']
   for await(const target of targets) {
