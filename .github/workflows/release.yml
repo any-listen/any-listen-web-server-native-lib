@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.check_tag.outputs.tag }}
-      lib_tag: ${{ steps.check_tag.outputs.lib_tag }}
+      lib_tag: ${{ steps.check_lib_version.outputs.lib_tag }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
