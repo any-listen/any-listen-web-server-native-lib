@@ -21,6 +21,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        fetch-depth: 0
+        fetch-tags: true
         submodules: 'true'
 
     - name: Check if submodule latest commit has a tag
@@ -50,7 +52,6 @@ jobs:
         VERSION_LINE=$(grep "export const NATIVE_VERSION" any-listen/packages/shared/common/constants.ts)
         echo "Found line: $VERSION_LINE"
         VERSION=$(echo "$VERSION_LINE" | sed -E 's/.*NATIVE_VERSION\s*=\s*([0-9]+).*/\1/')
-        # echo "NATIVE_VERSION=$VERSION" >> $GITHUB_ENV
         TAG_NAME="v$VERSION"
         if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
           echo "Tag $TAG_NAME already exists."
@@ -349,7 +350,7 @@ jobs:
       - Release
     name: Build Server
     runs-on: ubuntu-latest
-    if: needs.CheckTag.outputs.tag != ''
+    if:  always() && needs.CheckTag.outputs.tag != ''
     steps:
       - name: Checkout web server
         uses: actions/checkout@v4
