@@ -350,7 +350,10 @@ jobs:
       - Release
     name: Build Server
     runs-on: ubuntu-latest
-    if:  always() && needs.CheckTag.outputs.tag != ''
+    if: |
+      always() &&
+      needs.CheckTag.outputs.tag != '' &&
+      (needs.Release.result == 'success' || needs.Release.result == 'skipped')
     steps:
       - name: Checkout web server
         uses: actions/checkout@v4
