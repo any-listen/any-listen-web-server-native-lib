@@ -1,7 +1,7 @@
 {
   "name": "native-release",
   "dependencies": {
-    "better-sqlite3": "^11.8.1"
+    "better-sqlite3": "^11.9.1"
   },
   "devDependencies": {
     "node-abi": "latest",

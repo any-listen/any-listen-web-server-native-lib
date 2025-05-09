@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+env:
+  DEFAULT_BUILD_NODE_VERSION: 18,20,22,24
+  IGNORE_NODE_VERSION: 18,24
+
 jobs:
   CheckTag:
     runs-on: ubuntu-latest
@@ -81,6 +85,19 @@ jobs:
         id: create_tag
         run: |
           echo "tag=${{ needs.CheckTag.outputs.lib_tag }}" >> $GITHUB_OUTPUT
+
+  GetBuildNodeVersion:
+    needs: CreateTag
+    runs-on: ubuntu-latest
+    outputs:
+      build_node_version: ${{ steps.get_build_node_version.outputs.build_node_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Get Build Node Version
+        id: get_build_node_version
+        run: |
+          echo "build_node_version=$(node -p "JSON.stringify(require('./util.js').formatEnvVersion('${{ env.DEFAULT_BUILD_NODE_VERSION }}'))")" >> $GITHUB_OUTPUT
 
   BuildNativeLibraryWindows:
     needs: CreateTag
@@ -269,11 +286,13 @@ jobs:
           files: dist/*.tar.gz
 
   BuildNativeLibraryLinuxArm:
-    needs: CreateTag
+    needs:
+      - CreateTag
+      - GetBuildNodeVersion
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        lib_target: ['18.0.0', '20.0.0', '22.0.0', '23.0.0']
+        lib_target: ${{ fromJSON(needs.GetBuildNodeVersion.outputs.build_node_version) }}
     name: Linux arm/v7 node ${{ matrix.lib_target }}
     steps:
       - name: Check out git repository
