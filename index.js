@@ -25,6 +25,7 @@ fs.writeFileSync(
 const exec = require('child_process').execSync
 
 exec('npm install --ignore-scripts', { stdio: 'inherit', cwd: __dirname, shell: true })
+exec('node dependencies-patch.js', { stdio: 'inherit', cwd: __dirname, shell: true })
 
 fs.cpSync(join('node_modules/better-sqlite3/src'), join('./src'), {
   recursive: true,

@@ -7,8 +7,5 @@
     "prebuild": "latest",
     "node-abi": "latest",
     "tar": "latest"
-  },
-  "overrides": {
-    "node-abi": "latest"
   }
 }
