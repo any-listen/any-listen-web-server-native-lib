@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  DEFAULT_BUILD_NODE_VERSION: 18,20,22,24
-  IGNORE_NODE_VERSION: 18,24
+  DEFAULT_BUILD_NODE_VERSION: 18,20,22,23,24
+  IGNORE_NODE_VERSION: 18,23,24
 
 jobs:
   CheckTag:
@@ -390,6 +390,10 @@ jobs:
           git config user.name "lyswhut"
           git config user.email "lyswhut@qq.com"
           git add .
+          if git diff --cached --quiet; then
+            echo "No changes to commit. Skipping push."
+            exit 0
+          fi
           git commit -m "release: v${{ needs.CheckTag.outputs.tag }}"
           git remote set-url origin https://x-access-token:${{ secrets.GH_WEB_SERVER_PAT }}@github.com/any-listen/any-listen-web-server.git
           git push origin main
