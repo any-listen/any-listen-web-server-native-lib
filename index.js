@@ -66,6 +66,12 @@ const unpackFile = async(target, arch) => {
   })
 }
 
+const parseDefaultLibVersion = () => {
+  const str = fs.readFileSync(join('any-listen/packages/shared/common/constants.ts'), 'utf8').toString()
+  const result = /NATIVE_VERSION\s*=\s*([\d]+)/.exec(str)[1]
+  return result
+}
+
 /**
  *
  * @param {string} target
@@ -74,7 +80,7 @@ const build = async(target) => {
   // const target = process.env.LIB_TARGET || '18.0.0'
   if (!target) throw new Error('LIB_TARGET is not set')
   const arch = process.env.LIB_ARCH || process.arch
-  const version = process.env.LIB_VERSION
+  const version = process.env.LIB_VERSION || parseDefaultLibVersion()
   if (!version) throw new Error('LIB_VERSION is not set')
 
   if (process.platform == 'win32' && (arch == 'arm64' || arch == 'ia32')) {
@@ -124,7 +130,7 @@ const defaultIgnoreVersion = ['18.0.0', '23.0.0']
 const { formatEnvVersion } = require('./util')
 const ignoreVersion = formatEnvVersion(process.env.IGNORE_NODE_VERSION) || defaultIgnoreVersion
 const run = async() => {
-  const targets = formatEnvVersion(process.env.DEFAULT_BUILD_NODE_VERSION) || defaultVersion
+  const targets = formatEnvVersion(process.env.DEFAULT_BUILD_NODE_VERSION) || process.env.IS_CI ? defaultVersion : [process.versions.node]
   for await(const target of targets) {
     await build(target)
   }
