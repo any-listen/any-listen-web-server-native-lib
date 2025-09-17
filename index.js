@@ -88,7 +88,7 @@ const build = async(target) => {
   }
 
   console.log(`Building for ${process.platform} ${target} ${arch}...`)
-  exec(`npx prebuild -r node -a ${arch} -t ${target} --strip`, { stdio: 'inherit', cwd: __dirname, shell: true })
+  exec(`npx prebuild -r node -a ${arch} -t ${target}${process.platform == 'android' ? '' : ' --strip'}`, { stdio: 'inherit', cwd: __dirname, shell: true })
 
   try {
     fs.rmSync(join('native'), { recursive: true })
