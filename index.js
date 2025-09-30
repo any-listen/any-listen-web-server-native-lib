@@ -125,8 +125,8 @@ const build = async(target) => {
   })
 }
 
-const defaultVersion = ['18.0.0', '20.0.0', '22.0.0', '23.0.0', '24.0.0']
-const defaultIgnoreVersion = ['18.0.0', '23.0.0']
+const defaultVersion = ['18.0.0', '20.0.0', '22.0.0', '24.0.0']
+const defaultIgnoreVersion = ['18.0.0']
 const { formatEnvVersion } = require('./util')
 const ignoreVersion = formatEnvVersion(process.env.IGNORE_NODE_VERSION) || defaultIgnoreVersion
 const run = async() => {
