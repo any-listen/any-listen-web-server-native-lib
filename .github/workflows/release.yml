@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 env:
-  DEFAULT_BUILD_NODE_VERSION: 20,22,23,24
-  IGNORE_NODE_VERSION: 23,24
+  DEFAULT_BUILD_NODE_VERSION: 20,22,23,24,25
+  IGNORE_NODE_VERSION: 23,24,25
 
 jobs:
   CheckTag:
