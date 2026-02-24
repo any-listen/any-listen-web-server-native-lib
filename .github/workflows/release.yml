@@ -338,12 +338,12 @@ jobs:
       - name: Set release variables
         id: set-release-vars
         run: |
-          TAG="${{ needs.CreateTag.outputs.tag }}"
-          if [[ ! "$TAG" =~ ^\d+\.\d+\.\d+$ ]]; then
-            echo "TAG is not in x.x.x format. Using beta settings."
+          APP_VERSION=$(jq -r '.version' any-listen/packages/web-server/package.json)
+          if [[ ! "$APP_VERSION" =~ ^\d+\.\d+\.\d+$ ]]; then
+            echo "APP_VERSION is not in x.x.x format. Using beta settings."
             echo "log_file=changeLog.beta.md" >> $GITHUB_ENV
           else
-            echo "TAG is in x.x.x format. Using regular release settings."
+            echo "APP_VERSION is in x.x.x format. Using regular release settings."
             echo "log_file=changeLog.md" >> $GITHUB_ENV
           fi
 
