@@ -83,9 +83,8 @@ const build = async(target) => {
   const version = process.env.LIB_VERSION || parseDefaultLibVersion()
   if (!version) throw new Error('LIB_VERSION is not set')
 
-  if (process.platform == 'win32' && (arch == 'arm64' || arch == 'ia32')) {
-    if (ignoreVersion.includes(target)) return
-  }
+  // node 22+ does not support 32-bit Windows
+  if (process.platform == 'win32' && arch == 'ia32' && parseInt(target) > 22) return
 
   console.log(`Building for ${process.platform} ${target} ${arch}...`)
   exec(`npx prebuild -r node -a ${arch} -t ${target}${process.platform == 'android' ? '' : ' --strip'}`, { stdio: 'inherit', cwd: __dirname, shell: true })
@@ -125,12 +124,13 @@ const build = async(target) => {
   })
 }
 
-const defaultVersion = ['20.0.0', '22.0.0', '24.0.0', '25.0.0']
-const defaultIgnoreVersion = ['25.0.0']
 const { formatEnvVersion } = require('./util')
-const ignoreVersion = formatEnvVersion(process.env.IGNORE_NODE_VERSION) || defaultIgnoreVersion
+// const defaultVersion = ['20.0.0', '22.0.0', '24.0.0', '25.0.0', '26.0.0']
+const defaultVersion = formatEnvVersion(fs.readFileSync(join('.github/workflows/release.yml'), 'utf8').match(/DEFAULT_BUILD_NODE_VERSION:\s*([^\n]+)/)[1])
+// const defaultIgnoreVersion = ['25.0.0']
+// const ignoreVersion = formatEnvVersion(process.env.IGNORE_NODE_VERSION) || defaultIgnoreVersion
 const run = async() => {
-  const targets = formatEnvVersion(process.env.DEFAULT_BUILD_NODE_VERSION) || process.env.IS_CI ? defaultVersion : [process.versions.node]
+  const targets = process.env.DEFAULT_BUILD_NODE_VERSION || process.env.IS_CI ? formatEnvVersion(process.env.DEFAULT_BUILD_NODE_VERSION) || defaultVersion : [process.versions.node]
   for await(const target of targets) {
     await build(target)
   }
