@@ -77,7 +77,7 @@ runs:
           exit 0
         fi
 
-        upload() {
+        upload_with_retry() {
           local file="$1"
           local max_retry=3
           local attempt=1
@@ -128,4 +128,21 @@ runs:
           exit 0
         fi
 
-        gh release edit "$TAG" --draft=false
+
+        ARGS=(--draft=false)
+
+        if [ -n "${{ inputs.title }}" ]; then
+          ARGS+=(--title "${{ inputs.title }}")
+        fi
+
+        if [ "${{ inputs.prerelease }}" = "true" ]; then
+          ARGS+=(--prerelease)
+        fi
+
+        if [ -n "${{ inputs.notes_file }}" ]; then
+          ARGS+=(--notes-file "${{ inputs.notes_file }}")
+        elif [ -n "${{ inputs.notes }}" ]; then
+          ARGS+=(--notes "${{ inputs.notes }}")
+        fi
+
+        gh release edit "$TAG" "${ARGS[@]}"
