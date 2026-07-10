@@ -282,7 +282,7 @@ jobs:
     needs:
       - CreateTag
       - GetBuildNodeVersion
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
         lib_target: ${{ fromJSON(needs.GetBuildNodeVersion.outputs.build_node_version) }}
