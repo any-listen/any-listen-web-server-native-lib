@@ -6,3 +6,5 @@ prebuilds
 native
 dist
 package-lock.json
+binding.gyp
+lib

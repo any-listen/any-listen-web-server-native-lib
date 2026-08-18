@@ -25,7 +25,6 @@ fs.writeFileSync(
 const exec = require('child_process').execSync
 
 exec('npm install --ignore-scripts', { stdio: 'inherit', cwd: __dirname, shell: true })
-exec('node dependencies-patch.js', { stdio: 'inherit', cwd: __dirname, shell: true })
 
 fs.cpSync(join('node_modules/better-sqlite3/src'), join('./src'), {
   recursive: true,
@@ -35,35 +34,25 @@ fs.cpSync(join('node_modules/better-sqlite3/deps'), join('./deps'), {
   recursive: true,
   force: true,
 })
-// fs.cpSync(join('node_modules/better-sqlite3/binding.gyp'), join('./binding.gyp'))
+fs.cpSync(join('node_modules/better-sqlite3/lib'), join('./lib'), {
+  recursive: true,
+  force: true,
+})
+fs.cpSync(join('node_modules/better-sqlite3/binding.gyp'), join('./binding.gyp'))
 // fs.rmSync(join('node_modules'), { recursive: true })
 
-// exec(`npx --no-install -y prebuild -r node -t 16.0.0 --openssl_fips='' --strip --include-regex 'better_sqlite3.node$'`, { stdio: 'inherit', cwd: __dirname, shell: true, env: process.env })
-
-/**
- *
- * @param {string} target
- * @returns
- */
-const getNodeAbi = async(target) => (await import('node-abi')).getAbi(target, 'node')
+// exec('npx node-gyp rebuild --release --force_build=1', { stdio: 'inherit', cwd: __dirname, shell: true })
 
 /**
  *
  * @param {string} target
  * @param {string} arch
  */
-const unpackFile = async(target, arch) => {
-  const filePath = join('./prebuilds', `${pkg.name}-v-node-v${await getNodeAbi(target)}-${process.platform}-${arch}.tar.gz`)
-  const dist = join('./native')
-  fs.mkdirSync(dist, {
-    recursive: true,
-  })
-  const tar = require('tar')
-  await tar.x({
-    file: filePath,
-    strip: 2,
-    C: dist,
-  })
+const cpFiles = async(arch) => {
+  const filePaths = [join('build/Release/better_sqlite3.node')]
+  for (const filePath of filePaths) {
+    fs.cpSync(filePath, join('native', path.basename(filePath)), { recursive: true })
+  }
 }
 
 const parseDefaultLibVersion = () => {
@@ -74,29 +63,20 @@ const parseDefaultLibVersion = () => {
 
 /**
  *
- * @param {string} target
  */
-const build = async(target) => {
-  // const target = process.env.LIB_TARGET || '18.0.0'
-  if (!target) throw new Error('LIB_TARGET is not set')
+const build = async() => {
   const arch = process.env.LIB_ARCH || process.arch
   const version = process.env.LIB_VERSION || parseDefaultLibVersion()
   if (!version) throw new Error('LIB_VERSION is not set')
 
-  // node 22+ does not support 32-bit Windows
-  if (process.platform == 'win32' && arch == 'ia32' && parseInt(target) > 22) return
-
-  console.log(`Building for ${process.platform} ${target} ${arch}...`)
-  exec(`npx prebuild -r node -a ${arch} -t ${target}${process.platform == 'android' ? '' : ' --strip'}`, { stdio: 'inherit', cwd: __dirname, shell: true })
+  console.log(`Building for ${process.platform} ${arch}...`)
+  exec(`npx node-gyp rebuild --release --force_build=1 --arch=${arch}`, { stdio: 'inherit', cwd: __dirname, shell: true })
 
   try {
     fs.rmSync(join('native'), { recursive: true })
   } catch {}
-  // fs.cpSync(join('build/Release/better_sqlite3.node'), join('./native/better_sqlite3.node'), {
-  //   recursive: true,
-  //   force: true,
-  // })
-  await unpackFile(target, arch)
+
+  await cpFiles(arch)
 
   const tar = require('tar')
   const packFile = ({ gzip, cwd, files, dist }) =>
@@ -120,24 +100,8 @@ const build = async(target) => {
     gzip: true,
     cwd: join('./native'),
     files: fs.readdirSync(join('./native')),
-    dist: join(`dist/${process.platform}_${arch}_${await getNodeAbi(target)}_v${version}.tar.gz`),
+    dist: join(`dist/${process.platform}_${arch}_v${version}.tar.gz`),
   })
 }
 
-const { formatEnvVersion } = require('./util')
-// const defaultVersion = ['20.0.0', '22.0.0', '24.0.0', '25.0.0', '26.0.0']
-const defaultVersion = formatEnvVersion(fs.readFileSync(join('.github/workflows/release.yml'), 'utf8').match(/DEFAULT_BUILD_NODE_VERSION:\s*([^\n]+)/)[1])
-// const defaultIgnoreVersion = ['25.0.0']
-// const ignoreVersion = formatEnvVersion(process.env.IGNORE_NODE_VERSION) || defaultIgnoreVersion
-const run = async() => {
-  const targets = process.env.DEFAULT_BUILD_NODE_VERSION || process.env.IS_CI ? formatEnvVersion(process.env.DEFAULT_BUILD_NODE_VERSION) || defaultVersion : [process.versions.node]
-  for await(const target of targets) {
-    await build(target)
-  }
-}
-
-if (process.env.LIB_TARGET) {
-  build(process.env.LIB_TARGET)
-} else {
-  run()
-}
+build()

@@ -11,10 +11,6 @@ on:
 permissions:
   contents: write
 
-env:
-  DEFAULT_BUILD_NODE_VERSION: 20,22,23,24,25,26
-  # IGNORE_NODE_VERSION: 23,24,25,26
-
 jobs:
   CheckTag:
     runs-on: ubuntu-latest
@@ -23,7 +19,7 @@ jobs:
       lib_tag: ${{ steps.check_lib_version.outputs.lib_tag }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
         fetch-tags: true
@@ -67,7 +63,7 @@ jobs:
     if: needs.CheckTag.outputs.lib_tag != ''
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Create git tag
         uses: ./.github/actions/git-tag
         with:
@@ -79,48 +75,22 @@ jobs:
         run: |
           echo "tag=${{ needs.CheckTag.outputs.lib_tag }}" >> $GITHUB_OUTPUT
 
-  GetBuildNodeVersion:
-    needs: CreateTag
-    runs-on: ubuntu-latest
-    outputs:
-      build_node_version: ${{ steps.get_build_node_version.outputs.build_node_version }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-      - name: Get Build Node Version
-        id: get_build_node_version
-        run: |
-          echo "build_node_version=$(node -p "JSON.stringify(require('./util.js').formatEnvVersion('${{ env.DEFAULT_BUILD_NODE_VERSION }}'))")" >> $GITHUB_OUTPUT
-
   BuildNativeLibraryWindows:
     needs: CreateTag
     runs-on: windows-latest
-    strategy:
-      matrix:
-        architecture: ['x64', 'ia32']
-    name: Windows ${{ matrix.architecture }}
+    name: Windows x64
     env:
       LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
-      - name: Cache file
-        uses: actions/cache@v5
-        with:
-          path: |
-            build
-            prebuilds
-          key: windows-${{ matrix.architecture }}-build-caches-
-          restore-keys: windows-${{ matrix.architecture }}-build-caches-
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Build
-        env:
-          LIB_ARCH: ${{ matrix.architecture }}
         run: |
           node index.js
 
@@ -139,19 +109,11 @@ jobs:
       LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
-      - name: Cache file
-        uses: actions/cache@v5
-        with:
-          path: |
-            build
-            prebuilds
-          key: windows-arm-build-caches-
-          restore-keys: windows-arm-build-caches-
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Build
@@ -176,27 +138,13 @@ jobs:
       LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
     steps:
       - name: Install setuptools
-        run: |
-          mkdir ~/.venv
-          python3 -m venv ~/.venv
-          source ~/.venv/bin/activate
-          python3 -m pip install setuptools
+        run: brew install python-setuptools
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
-
-      - name: Cache file
-        uses: actions/cache@v5
-        with:
-          path: |
-            build
-            prebuilds
-          key: mac-${{ matrix.architecture }}-build-caches-
-          restore-keys: mac-${{ matrix.architecture }}-build-caches-
-
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Build
@@ -221,18 +169,9 @@ jobs:
       LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
-
-      - name: Cache file
-        uses: actions/cache@v5
-        with:
-          path: |
-            build
-            prebuilds
-          key: linux-amd64-build-caches-
-          restore-keys: linux-amd64-build-caches-
 
       - name: Build
         run: |
@@ -254,18 +193,9 @@ jobs:
       LIB_VERSION: ${{ needs.CreateTag.outputs.tag }}
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
-
-      - name: Cache file
-        uses: actions/cache@v5
-        with:
-          path: |
-            build
-            prebuilds
-          key: linux-arm64-build-caches-
-          restore-keys: linux-arm64-build-caches-
 
       - name: Build
         run: |
@@ -279,34 +209,20 @@ jobs:
           files: dist/*.tar.gz
 
   BuildNativeLibraryLinuxArm:
-    needs:
-      - CreateTag
-      - GetBuildNodeVersion
+    needs: CreateTag
     runs-on: ubuntu-24.04-arm
-    strategy:
-      matrix:
-        lib_target: ${{ fromJSON(needs.GetBuildNodeVersion.outputs.build_node_version) }}
-    name: Linux arm/v7 node ${{ matrix.lib_target }}
+    name: Linux arm/v7
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
-      - name: Cache file
-        uses: actions/cache@v5
-        with:
-          path: |
-            build
-            prebuilds
-          key: linux-arm/v7-${{ matrix.lib_target }}-build-caches-
-          restore-keys: |
-            linux-arm/v7-${{ matrix.lib_target }}-build-caches-
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
           platforms: arm
       - run: |
-          docker run --rm -v $(pwd):/tmp/project  -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' -e LIB_TARGET='${{ matrix.lib_target }}' --platform linux/arm/v7 --entrypoint /bin/sh node:18 -c "\
+          docker run --rm -v $(pwd):/tmp/project  -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' --platform linux/arm/v7 --entrypoint /bin/sh node:18 -c "\
           cd /tmp/project && \
           node index.js"
 
@@ -330,7 +246,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: 'true'
 
@@ -366,7 +282,7 @@ jobs:
       (needs.Release.result == 'success' || needs.Release.result == 'skipped')
     steps:
       - name: Checkout web server
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: any-listen/any-listen-web-server
           submodules: 'true'
