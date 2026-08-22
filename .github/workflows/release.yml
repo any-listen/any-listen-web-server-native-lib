@@ -160,16 +160,10 @@ jobs:
           tag_name: v${{ needs.CreateTag.outputs.tag }}
           files: dist/*.tar.gz
 
-  BuildNativeLibraryLinux:
+  BuildNativeLibraryLinuxAmd64:
     needs: CreateTag
     if: needs.CreateTag.outputs.tag != ''
-    strategy:
-      matrix:
-        arch:
-          - amd64
-          - arm/v7
-          - arm64
-    name: Prebuild on Linux (${{ matrix.arch }})
+    name: Linux (amd64)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -178,7 +172,37 @@ jobs:
       - uses: docker/setup-qemu-action@v4
         with:
           image: tonistiigi/binfmt:latest
-          platforms: amd64,arm,arm64
+          platforms: amd64
+      - run: |
+          docker run --rm -v $(pwd):/tmp/project -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' --entrypoint /bin/sh --platform linux/amd64 node:18 -c "\
+          cd /tmp/project && \
+          node index.js"
+
+      - name: Upload package
+        uses: ./.github/actions/gh-release
+        with:
+          draft: true
+          tag_name: v${{ needs.CreateTag.outputs.tag }}
+          files: dist/*.tar.gz
+
+  BuildNativeLibraryLinuxArm:
+    needs: CreateTag
+    if: needs.CreateTag.outputs.tag != ''
+    strategy:
+      matrix:
+        arch:
+          - arm/v7
+          - arm64
+    name: Linux (${{ matrix.arch }})
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: 'true'
+      - uses: docker/setup-qemu-action@v4
+        with:
+          image: tonistiigi/binfmt:latest
+          platforms: arm,arm64
       - run: |
           docker run --rm -v $(pwd):/tmp/project -e LIB_VERSION='${{ needs.CreateTag.outputs.tag }}' --entrypoint /bin/sh --platform linux/${{ matrix.arch }} node:18 -c "\
           cd /tmp/project && \
@@ -270,8 +294,8 @@ jobs:
       - BuildNativeLibraryWindows
       - BuildNativeLibraryWindowsArm
       - BuildNativeLibraryMacOS
-      - BuildNativeLibraryLinux
-      # - BuildNativeLibraryLinuxAmd64
+      - BuildNativeLibraryLinuxAmd64
+      - BuildNativeLibraryLinuxArm
       # - BuildNativeLibraryLinuxArm64
       # - BuildNativeLibraryLinuxArm
     name: Release
