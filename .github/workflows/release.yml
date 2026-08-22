@@ -67,7 +67,7 @@ jobs:
       - name: Create git tag
         uses: ./.github/actions/git-tag
         with:
-          tag: v${{ needs.CheckTag.outputs.tag }}
+          tag: v${{ needs.CheckTag.outputs.lib_tag }}
           sha: ${{ github.sha }}
 
       - name: Output tag
