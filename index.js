@@ -15,6 +15,10 @@ try {
 
 pkg.dependencies['better-sqlite3'] = webPkg.dependencies['better-sqlite3']
 
+if (process.platform == 'linux') {
+  pkg.devDependencies['node-gyp'] = '^12'
+  pkg.devDependencies['tar'] = '^7'
+}
 
 fs.writeFileSync(
   join('package.json'),
